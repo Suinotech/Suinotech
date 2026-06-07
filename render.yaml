@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: suinotech
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_PATH
+        value: /var/data/suinotech.db
+disks:
+  - name: suinotech-data
+    mountPath: /var/data
+    sizeGB: 1

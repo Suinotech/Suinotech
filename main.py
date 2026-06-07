@@ -4,7 +4,16 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-DATABASE = 'suinotech.db'
+DATABASE = os.getenv("DATABASE_PATH", "suinotech.db")
+
+_db_initialized = False
+
+def ensure_db_initialized():
+    global _db_initialized
+    if _db_initialized:
+        return
+    init_db()
+    _db_initialized = True
 
 @app.context_processor
 def inject_globals():
@@ -216,6 +225,7 @@ def gerar_identificacoes(conn, prefixo: str, inicio: int, quantidade: int):
 # --- DASHBOARD ---
 @app.route('/')
 def dashboard():
+    ensure_db_initialized()
     conn = get_db()
     c = conn.cursor()
     
@@ -239,6 +249,7 @@ def dashboard():
 # --- MATRIZES ---
 @app.route('/matrizes')
 def matrizes():
+    ensure_db_initialized()
     conn = get_db()
     matrizes_list = conn.execute("SELECT * FROM matrizes ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -246,6 +257,7 @@ def matrizes():
 
 @app.route('/matrizes/<int:id>')
 def matriz_detalhe(id):
+    ensure_db_initialized()
     conn = get_db()
     matriz = conn.execute("SELECT * FROM matrizes WHERE id=?", (id,)).fetchone()
     if matriz is None:
@@ -280,6 +292,7 @@ def matriz_detalhe(id):
 
 @app.route('/matrizes/nova', methods=['GET', 'POST'])
 def nova_matriz():
+    ensure_db_initialized()
     if request.method == 'POST':
         conn = get_db()
         data = request.form
@@ -294,6 +307,7 @@ def nova_matriz():
 
 @app.route('/matrizes/<int:id>/editar', methods=['GET', 'POST'])
 def editar_matriz(id):
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -310,6 +324,7 @@ def editar_matriz(id):
 
 @app.route('/matrizes/<int:id>/deletar')
 def deletar_matriz(id):
+    ensure_db_initialized()
     conn = get_db()
     conn.execute("DELETE FROM matrizes WHERE id=?", (id,))
     conn.commit()
@@ -319,6 +334,7 @@ def deletar_matriz(id):
 # --- PARTOS ---
 @app.route('/partos')
 def partos():
+    ensure_db_initialized()
     conn = get_db()
     partos_list = conn.execute('''SELECT p.*, m.identificacao as matriz 
                                   FROM partos p JOIN matrizes m ON p.matriz_id = m.id 
@@ -328,6 +344,7 @@ def partos():
 
 @app.route('/partos/<int:id>')
 def parto_detalhe(id):
+    ensure_db_initialized()
     conn = get_db()
     parto = conn.execute('''SELECT p.*, m.identificacao as matriz_identificacao, m.id as matriz_id
                             FROM partos p
@@ -347,6 +364,7 @@ def parto_detalhe(id):
 
 @app.route('/partos/novo', methods=['GET', 'POST'])
 def novo_parto():
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -407,6 +425,7 @@ def novo_parto():
 
 @app.route('/partos/<int:parto_id>/leitoes/novo', methods=['GET', 'POST'])
 def novo_leitao(parto_id):
+    ensure_db_initialized()
     conn = get_db()
     parto = conn.execute("SELECT * FROM partos WHERE id=?", (parto_id,)).fetchone()
     if parto is None:
@@ -444,6 +463,7 @@ def novo_leitao(parto_id):
 # --- LOTES ---
 @app.route('/lotes')
 def lotes():
+    ensure_db_initialized()
     conn = get_db()
     lotes_list = conn.execute("SELECT * FROM lotes ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -451,6 +471,7 @@ def lotes():
 
 @app.route('/lotes/novo', methods=['GET', 'POST'])
 def novo_lote():
+    ensure_db_initialized()
     if request.method == 'POST':
         conn = get_db()
         data = request.form
@@ -464,6 +485,7 @@ def novo_lote():
 
 @app.route('/lotes/<int:id>/editar', methods=['GET', 'POST'])
 def editar_lote(id):
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -479,6 +501,7 @@ def editar_lote(id):
 # --- SUÍNOS (melhorado) ---
 @app.route('/suinos')
 def suinos():
+    ensure_db_initialized()
     conn = get_db()
     suinos_list = conn.execute('''SELECT s.*, l.nome as lote, m.identificacao as matriz 
                                   FROM suinos s 
@@ -492,6 +515,7 @@ def suinos():
 
 @app.route('/suinos/novo', methods=['GET', 'POST'])
 def novo_suino():
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -512,6 +536,7 @@ def novo_suino():
 
 @app.route('/suinos/<int:id>/editar', methods=['GET', 'POST'])
 def editar_suino(id):
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -530,6 +555,7 @@ def editar_suino(id):
 
 @app.route('/suinos/<int:id>/deletar')
 def deletar_suino(id):
+    ensure_db_initialized()
     conn = get_db()
     conn.execute("DELETE FROM suinos WHERE id=?", (id,))
     conn.commit()
@@ -539,6 +565,7 @@ def deletar_suino(id):
 # --- PESAGENS ---
 @app.route('/suinos/<int:id>/pesagens', methods=['GET', 'POST'])
 def pesagens_suino(id):
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -553,6 +580,7 @@ def pesagens_suino(id):
 # --- RACAO ---
 @app.route('/racao')
 def racao():
+    ensure_db_initialized()
     conn = get_db()
     racoes = conn.execute("SELECT * FROM racao ORDER BY created_at DESC").fetchall()
     conn.close()
@@ -560,6 +588,7 @@ def racao():
 
 @app.route('/racao/nova', methods=['GET', 'POST'])
 def nova_racao():
+    ensure_db_initialized()
     if request.method == 'POST':
         conn = get_db()
         data = request.form
@@ -575,6 +604,7 @@ def nova_racao():
 # --- SAUDE ---
 @app.route('/saude')
 def saude():
+    ensure_db_initialized()
     conn = get_db()
     registros = conn.execute('''SELECT s.*, su.identificacao as suino, m.identificacao as matriz
                                 FROM saude s 
@@ -588,6 +618,7 @@ def saude():
 
 @app.route('/saude/novo', methods=['GET', 'POST'])
 def novo_saude():
+    ensure_db_initialized()
     conn = get_db()
     if request.method == 'POST':
         data = request.form
@@ -606,6 +637,7 @@ def novo_saude():
 # --- RELATORIOS ---
 @app.route('/relatorios')
 def relatorios():
+    ensure_db_initialized()
     conn = get_db()
     c = conn.cursor()
     
@@ -639,10 +671,6 @@ def relatorios():
     return render_template('relatorios.html', stats=stats, suinos=suinos, lotes=lotes)
 
 if __name__ == '__main__':
-    init_db()
-    print("\n" + "="*50)
-    print("✅ Banco de dados inicializado!")
-    print("🚀 Acesse no navegador: http://localhost:5000")
-    print("📱 Para instalar como app: abra no Chrome/Firefox e clique em 'Instalar aplicativo'")
-    print("="*50 + "\n")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    ensure_db_initialized()
+    port = int(os.getenv("PORT", "5000"))
+    app.run(debug=False, host="0.0.0.0", port=port)
