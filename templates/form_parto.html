@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Novo Parto - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>👶 Novo Parto</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Matriz *</label>
+            <select class="form-control" name="matriz_id" required>
+                <option value="">Selecione a matriz</option>
+                {% for matriz in matrizes %}
+                <option value="{{ matriz.id }}" {{ 'selected' if selected_matriz_id and selected_matriz_id == matriz.id else '' }}>{{ matriz.identificacao }} ({{ matriz.tipo }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Lote inicial dos leitões (opcional)</label>
+            <select class="form-control" name="lote_id">
+                <option value="">Não definir agora</option>
+                {% for lote in lotes %}
+                <option value="{{ lote.id }}">{{ lote.nome }} ({{ lote.fase }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Data do Parto *</label>
+            <input type="date" class="form-control" name="data_parto" value="{{ datetime.now().strftime('%Y-%m-%d') }}" required>
+        </div>
+        <div class="form-group">
+            <label>Número do Parto</label>
+            <input type="number" class="form-control" name="numero_parto" min="1" value="1">
+        </div>
+        <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label>Nascidos Vivos</label>
+                <input type="number" class="form-control" name="nascidos_vivos" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label>Nascidos Mortos</label>
+                <input type="number" class="form-control" name="nascidos_mortos" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label>Mumificados</label>
+                <input type="number" class="form-control" name="mumificados" min="0" value="0">
+            </div>
+            <div class="form-group">
+                <label>Peso Médio de Nascimento (kg)</label>
+                <input type="number" step="0.01" class="form-control" name="peso_medio_nascimento">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea class="form-control" name="observacoes" rows="3"></textarea>
+        </div>
+
+        <div class="card" style="background: #fafdfa;">
+            <h2>🐷 Leitões (rastreio)</h2>
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" name="criar_leitoes" checked>
+                    Criar automaticamente os leitões nascidos vivos deste parto
+                </label>
+            </div>
+            <div class="grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 10px;">
+                <div class="form-group">
+                    <label>Prefixo (opcional)</label>
+                    <input type="text" class="form-control" name="prefixo" placeholder="Ex: M001-20260607-">
+                </div>
+                <div class="form-group">
+                    <label>Início da sequência</label>
+                    <input type="number" class="form-control" name="inicio_sequencia" min="1" value="1">
+                </div>
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+                <label>Ou informe as identificações (1 por linha)</label>
+                <textarea class="form-control" name="lista_identificacoes" rows="4" placeholder="Ex:\nBR123\nBR124\nBR125"></textarea>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a href="{{ url_for('partos') }}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Parto - {{ parto.matriz_identificacao }} - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>👶 Parto da Matriz {{ parto.matriz_identificacao }}</h2>
+        <div class="action-buttons">
+            <a href="{{ url_for('novo_leitao', parto_id=parto.id) }}" class="btn btn-primary">+ Adicionar Leitão</a>
+            <a href="{{ url_for('matriz_detalhe', id=parto.matriz_id) }}" class="btn btn-secondary">← Voltar</a>
+        </div>
+    </div>
+
+    <div class="grid" style="margin-bottom: 0;">
+        <div class="stat-card">
+            <div class="stat-value">{{ parto.data_parto }}</div>
+            <div class="stat-label">📅 Data do Parto</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ parto.nascidos_vivos or 0 }}</div>
+            <div class="stat-label">🐷 Nascidos Vivos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ leitoes|length }}</div>
+            <div class="stat-label">🧾 Leitões Registrados</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ parto.nascidos_mortos or 0 }}</div>
+            <div class="stat-label">💀 Nascidos Mortos</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>🐷 Leitões deste Parto</h2>
+    {% if leitoes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Sexo</th>
+                <th>Nascimento</th>
+                <th>Peso Nasc.</th>
+                <th>Lote</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in leitoes %}
+            <tr>
+                <td><strong>{{ l.identificacao }}</strong></td>
+                <td>{{ l.sexo or '-' }}</td>
+                <td>{{ l.data_nascimento or '-' }}</td>
+                <td>{{ l.peso_nascimento or '-' }}</td>
+                <td>{{ l.lote or '-' }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('editar_suino', id=l.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum leitão registrado para este parto.</p>
+        <p>Use “Adicionar Leitão” ou registre um novo parto com criação automática.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

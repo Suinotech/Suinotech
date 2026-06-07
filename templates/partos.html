@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Partos - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>👶 Partos</h2>
+        <a href="{{ url_for('novo_parto') }}" class="btn btn-primary">+ Novo Parto</a>
+    </div>
+
+    {% if partos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Matriz</th>
+                <th>Data</th>
+                <th>Nº do Parto</th>
+                <th>Nascidos Vivos</th>
+                <th>Nascidos Mortos</th>
+                <th>Mumificados</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for parto in partos %}
+            <tr>
+                <td><strong>{{ parto.matriz }}</strong></td>
+                <td>{{ parto.data_parto }}</td>
+                <td>{{ parto.numero_parto }}</td>
+                <td>{{ parto.nascidos_vivos }}</td>
+                <td>{{ parto.nascidos_mortos }}</td>
+                <td>{{ parto.mumificados or 0 }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('parto_detalhe', id=parto.id) }}" class="btn btn-secondary btn-sm">Abrir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum parto registrado.</p>
+        <p>Clique em "+ Novo Parto" para começar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

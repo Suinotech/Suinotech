@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Suíno' if suino else 'Novo Suíno' }} - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ '✏️ Editar Suíno' if suino else '🐷 Novo Suíno' }}</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Identificação *</label>
+            <input type="text" class="form-control" name="identificacao" value="{{ suino.identificacao if suino else '' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Lote</label>
+            <select class="form-control" name="lote_id">
+                <option value="">Selecione o lote</option>
+                {% for lote in lotes %}
+                <option value="{{ lote.id }}" {{ 'selected' if suino and suino.lote_id == lote.id else '' }}>{{ lote.nome }} ({{ lote.fase }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Matriz (Mãe)</label>
+            <select class="form-control" name="matriz_id">
+                <option value="">Selecione a matriz</option>
+                {% for matriz in matrizes %}
+                <option value="{{ matriz.id }}" {{ 'selected' if suino and suino.matriz_id == matriz.id else '' }}>{{ matriz.identificacao }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Data de Nascimento</label>
+            <input type="date" class="form-control" name="data_nascimento" value="{{ suino.data_nascimento if suino else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Sexo</label>
+            <select class="form-control" name="sexo">
+                <option value="">Selecione</option>
+                <option value="Macho" {{ 'selected' if suino and suino.sexo == 'Macho' else '' }}>Macho</option>
+                <option value="Fêmea" {{ 'selected' if suino and suino.sexo == 'Fêmea' else '' }}>Fêmea</option>
+                <option value="Irrelevante" {{ 'selected' if suino and suino.sexo == 'Irrelevante' else '' }}>Irrelevante</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Peso de Nascimento (kg)</label>
+            <input type="number" step="0.01" class="form-control" name="peso_nascimento" value="{{ suino.peso_nascimento if suino else '' }}">
+        </div>
+        {% if suino %}
+        <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" name="status">
+                <option value="ativo" {{ 'selected' if suino.status == 'ativo' else '' }}>Ativo</option>
+                <option value="vendido" {{ 'selected' if suino.status == 'vendido' else '' }}>Vendido</option>
+                <option value="morto" {{ 'selected' if suino.status == 'morto' else '' }}>Morto</option>
+                <option value="transferido" {{ 'selected' if suino.status == 'transferido' else '' }}>Transferido</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea class="form-control" name="observacoes" rows="3">{{ suino.observacoes if suino else '' }}</textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a href="{{ url_for('suinos') }}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

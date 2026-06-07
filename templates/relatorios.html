@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_suinos }}</div>
+        <div class="stat-label">🐷 Suínos Ativos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_nascidos_vivos }}</div>
+        <div class="stat-label">👶 Total Nascidos Vivos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_nascidos_mortos }}</div>
+        <div class="stat-label">💀 Total Nascidos Mortos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.taxa_mortalidade }}%</div>
+        <div class="stat-label">📊 Taxa de Mortalidade</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="header-actions">
+        <h2>📊 Dados da Granja</h2>
+        <button class="btn btn-primary" onclick="exportCSV()">📥 Exportar CSV</button>
+    </div>
+</div>
+
+{% if suinos %}
+<div class="card">
+    <h2>🐷 Lista de Suínos</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Lote</th>
+                <th>Sexo</th>
+                <th>Peso Nasc.</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for suino in suinos %}
+            <tr>
+                <td><strong>{{ suino.identificacao }}</strong></td>
+                <td>{{ suino.lote or '-' }}</td>
+                <td>{{ suino.sexo or '-' }}</td>
+                <td>{{ suino.peso_nascimento or '-' }} kg</td>
+                <td><span class="status-badge status-{{ suino.status }}">{{ suino.status|capitalize }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<script>
+function exportCSV() {
+    let csv = 'Identificação,Lote,Sexo,Peso Nascimento,Status\n';
+    {% for suino in suinos %}
+    csv += '{{ suino.identificacao }},{{ suino.lote or '' }},{{ suino.sexo or '' }},{{ suino.peso_nascimento or 0 }},{{ suino.status }}\n';
+    {% endfor %}
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'suinotech_relatorio_' + new Date().toISOString().split('T')[0] + '.csv';
+    a.click();
+}
+</script>
+{% endblock %}

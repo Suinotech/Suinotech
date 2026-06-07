@@ -1,0 +1,8 @@
+node_modules/
+build/
+dist/
+*.db
+*.log
+.DS_Store
+.env
+Projeto_SuinoTech_Industrial_Completo.pdf

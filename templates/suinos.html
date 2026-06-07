@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Suínos - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>🐷 Suínos</h2>
+        <a href="{{ url_for('novo_suino') }}" class="btn btn-primary">+ Novo Suíno</a>
+    </div>
+
+    {% if suinos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Lote</th>
+                <th>Matriz</th>
+                <th>Sexo</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for suino in suinos %}
+            <tr>
+                <td><strong>{{ suino.identificacao }}</strong></td>
+                <td>{{ suino.lote or '-' }}</td>
+                <td>{{ suino.matriz or '-' }}</td>
+                <td>{{ suino.sexo or '-' }}</td>
+                <td><span class="status-badge status-{{ suino.status }}">{{ suino.status|capitalize }}</span></td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('pesagens_suino', id=suino.id) }}" class="btn btn-secondary btn-sm">📏 Pesagens</a>
+                    <a href="{{ url_for('editar_suino', id=suino.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                    <a href="{{ url_for('deletar_suino', id=suino.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza?')">Remover</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum suíno cadastrado.</p>
+        <p>Clique em "+ Novo Suíno" para começar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Matriz {{ matriz.identificacao }} - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>🐖 Matriz {{ matriz.identificacao }}</h2>
+        <div class="action-buttons">
+            <a href="{{ url_for('novo_parto') }}?matriz_id={{ matriz.id }}" class="btn btn-primary">+ Registrar Parto</a>
+            <a href="{{ url_for('matrizes') }}" class="btn btn-secondary">← Voltar</a>
+        </div>
+    </div>
+
+    <div class="grid" style="margin-bottom: 0;">
+        <div class="stat-card">
+            <div class="stat-value">{{ resumo.total_partos or 0 }}</div>
+            <div class="stat-label">👶 Partos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ resumo.total_nascidos_vivos or 0 }}</div>
+            <div class="stat-label">🐷 Nascidos Vivos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ resumo.total_nascidos_mortos or 0 }}</div>
+            <div class="stat-label">💀 Nascidos Mortos</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ resumo.total_mumificados or 0 }}</div>
+            <div class="stat-label">🧫 Mumificados</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Dados da Matriz</h2>
+    <div class="grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 0;">
+        <div>
+            <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Tipo</div>
+            <div style="font-weight: 700;">{{ matriz.tipo }}</div>
+        </div>
+        <div>
+            <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Status</div>
+            <div><span class="status-badge status-{{ matriz.status }}">{{ matriz.status|capitalize }}</span></div>
+        </div>
+        <div>
+            <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Raça</div>
+            <div style="font-weight: 700;">{{ matriz.raca or '-' }}</div>
+        </div>
+        <div>
+            <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Entrada</div>
+            <div style="font-weight: 700;">{{ matriz.data_entrada or '-' }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="header-actions">
+        <h2>👶 Partos da Matriz</h2>
+        <a href="{{ url_for('novo_parto') }}?matriz_id={{ matriz.id }}" class="btn btn-primary btn-sm">+ Novo Parto</a>
+    </div>
+
+    {% if partos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Nº Parto</th>
+                <th>Vivos</th>
+                <th>Mortos</th>
+                <th>Mumificados</th>
+                <th>Leitões Registrados</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in partos %}
+            <tr>
+                <td>{{ p.data_parto }}</td>
+                <td>{{ p.numero_parto or '-' }}</td>
+                <td>{{ p.nascidos_vivos or 0 }}</td>
+                <td>{{ p.nascidos_mortos or 0 }}</td>
+                <td>{{ p.mumificados or 0 }}</td>
+                <td><strong>{{ p.leitoes_registrados or 0 }}</strong></td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('parto_detalhe', id=p.id) }}" class="btn btn-secondary btn-sm">Abrir</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum parto registrado para esta matriz.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>🐷 Leitões (desta matriz)</h2>
+    {% if leitoes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Parto</th>
+                <th>Nascimento</th>
+                <th>Sexo</th>
+                <th>Lote</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in leitoes %}
+            <tr>
+                <td><strong>{{ l.identificacao }}</strong></td>
+                <td><a href="{{ url_for('parto_detalhe', id=l.parto_id) }}">{{ l.parto_id }}</a></td>
+                <td>{{ l.data_nascimento or '-' }}</td>
+                <td>{{ l.sexo or '-' }}</td>
+                <td>{{ l.lote or '-' }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('editar_suino', id=l.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum leitão registrado para esta matriz ainda.</p>
+        <p>Registre um parto com criação automática de leitões.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

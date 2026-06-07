@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Início - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="grid">
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_suinos }}</div>
+        <div class="stat-label">🐷 Suínos Ativos</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_matrizes }}</div>
+        <div class="stat-label">🐖 Matrizes Ativas</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-value">{{ stats.total_lotes }}</div>
+        <div class="stat-label">📦 Lotes</div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>⚡ Ações Rápidas</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('nova_matriz') }}" class="btn btn-primary">+ Nova Matriz</a>
+        <a href="{{ url_for('novo_parto') }}" class="btn btn-primary">+ Novo Parto</a>
+        <a href="{{ url_for('novo_lote') }}" class="btn btn-primary">+ Novo Lote</a>
+        <a href="{{ url_for('novo_suino') }}" class="btn btn-primary">+ Novo Suíno</a>
+    </div>
+</div>
+
+{% if partos_recentes %}
+<div class="card">
+    <h2>👶 Partos Recentes</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Matriz</th>
+                <th>Data</th>
+                <th>Nascidos Vivos</th>
+                <th>Nascidos Mortos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for parto in partos_recentes %}
+            <tr>
+                <td><strong>{{ parto.matriz }}</strong></td>
+                <td>{{ parto.data_parto }}</td>
+                <td>{{ parto.nascidos_vivos }}</td>
+                <td>{{ parto.nascidos_mortos }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

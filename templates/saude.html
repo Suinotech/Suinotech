@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Saúde - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>💊 Saúde</h2>
+        <a href="{{ url_for('novo_saude') }}" class="btn btn-primary">+ Novo Registro</a>
+    </div>
+
+    {% if registros %}
+    <table>
+        <thead>
+            <tr>
+                <th>Animal</th>
+                <th>Tipo</th>
+                <th>Produto</th>
+                <th>Data</th>
+                <th>Veterinário</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in registros %}
+            <tr>
+                <td><strong>{{ reg.suino or reg.matriz or '-' }}</strong></td>
+                <td>{{ reg.tipo }}</td>
+                <td>{{ reg.produto or '-' }}</td>
+                <td>{{ reg.data_evento.split(' ')[0] if ' ' in reg.data_evento else reg.data_evento }}</td>
+                <td>{{ reg.veterinario or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum registro de saúde.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

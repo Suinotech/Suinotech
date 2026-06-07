@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Matriz' if matriz else 'Nova Matriz' }} - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ '✏️ Editar Matriz' if matriz else '🐖 Nova Matriz' }}</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Identificação *</label>
+            <input type="text" class="form-control" name="identificacao" value="{{ matriz.identificacao if matriz else '' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Tipo *</label>
+            <select class="form-control" name="tipo" required>
+                <option value="">Selecione</option>
+                <option value="Leitoa" {{ 'selected' if matriz and matriz.tipo == 'Leitoa' else '' }}>Leitoa</option>
+                <option value="Porca" {{ 'selected' if matriz and matriz.tipo == 'Porca' else '' }}>Porca</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Raça</label>
+            <input type="text" class="form-control" name="raca" value="{{ matriz.raca if matriz else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Data de Nascimento</label>
+            <input type="date" class="form-control" name="data_nascimento" value="{{ matriz.data_nascimento if matriz else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Data de Entrada na Granja</label>
+            <input type="date" class="form-control" name="data_entrada" value="{{ matriz.data_entrada if matriz else '' }}">
+        </div>
+        {% if matriz %}
+        <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" name="status">
+                <option value="ativa" {{ 'selected' if matriz.status == 'ativa' else '' }}>Ativa</option>
+                <option value="descartada" {{ 'selected' if matriz.status == 'descartada' else '' }}>Descartada</option>
+                <option value="morta" {{ 'selected' if matriz.status == 'morta' else '' }}>Morta</option>
+            </select>
+        </div>
+        {% endif %}
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea class="form-control" name="observacoes" rows="3">{{ matriz.observacoes if matriz else '' }}</textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a href="{{ url_for('matrizes') }}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

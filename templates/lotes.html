@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Lotes - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>📦 Lotes</h2>
+        <a href="{{ url_for('novo_lote') }}" class="btn btn-primary">+ Novo Lote</a>
+    </div>
+
+    {% if lotes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nome do Lote</th>
+                <th>Fase</th>
+                <th>Animais</th>
+                <th>Data de Criação</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lote in lotes %}
+            <tr>
+                <td><strong>{{ lote.nome }}</strong></td>
+                <td>{{ lote.fase }}</td>
+                <td>{{ lote.numero_animais or 0 }}</td>
+                <td>{{ lote.data_criacao.split(' ')[0] if lote.data_criacao else '-' }}</td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('editar_lote', id=lote.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum lote cadastrado.</p>
+        <p>Clique em "+ Novo Lote" para começar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

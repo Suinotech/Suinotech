@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Matrizes - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>🐖 Matrizes</h2>
+        <a href="{{ url_for('nova_matriz') }}" class="btn btn-primary">+ Nova Matriz</a>
+    </div>
+
+    {% if matrizes %}
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Tipo</th>
+                <th>Raça</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for matriz in matrizes %}
+            <tr>
+                <td><strong>{{ matriz.identificacao }}</strong></td>
+                <td>{{ matriz.tipo }}</td>
+                <td>{{ matriz.raca or '-' }}</td>
+                <td><span class="status-badge status-{{ matriz.status }}">{{ matriz.status|capitalize }}</span></td>
+                <td class="action-buttons">
+                    <a href="{{ url_for('matriz_detalhe', id=matriz.id) }}" class="btn btn-primary btn-sm">Abrir</a>
+                    <a href="{{ url_for('editar_matriz', id=matriz.id) }}" class="btn btn-secondary btn-sm">Editar</a>
+                    <a href="{{ url_for('deletar_matriz', id=matriz.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('Tem certeza?')">Remover</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhuma matriz cadastrada.</p>
+        <p>Clique em "+ Nova Matriz" para começar.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

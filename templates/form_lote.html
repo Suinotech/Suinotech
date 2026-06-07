@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar Lote' if lote else 'Novo Lote' }} - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ '✏️ Editar Lote' if lote else '📦 Novo Lote' }}</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome do Lote *</label>
+            <input type="text" class="form-control" name="nome" value="{{ lote.nome if lote else '' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Fase *</label>
+            <select class="form-control" name="fase" required>
+                <option value="">Selecione</option>
+                <option value="Maternidade" {{ 'selected' if lote and lote.fase == 'Maternidade' else '' }}>Maternidade</option>
+                <option value="Creche" {{ 'selected' if lote and lote.fase == 'Creche' else '' }}>Creche</option>
+                <option value="Recria" {{ 'selected' if lote and lote.fase == 'Recria' else '' }}>Recria</option>
+                <option value="Terminação" {{ 'selected' if lote and lote.fase == 'Terminação' else '' }}>Terminação</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Número de Animais</label>
+            <input type="number" class="form-control" name="numero_animais" min="0" value="{{ lote.numero_animais if lote else '' }}">
+        </div>
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea class="form-control" name="observacoes" rows="3">{{ lote.observacoes if lote else '' }}</textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a href="{{ url_for('lotes') }}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}

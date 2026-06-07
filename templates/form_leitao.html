@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Novo Leitão - SuinoTech{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="header-actions">
+        <h2>🐷 Novo Leitão</h2>
+        <a href="{{ url_for('parto_detalhe', id=parto.id) }}" class="btn btn-secondary">← Voltar</a>
+    </div>
+
+    <div class="card" style="background: #fafdfa;">
+        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <div>
+                <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Matriz</div>
+                <div style="font-weight: 800;">{{ matriz.identificacao }}</div>
+            </div>
+            <div>
+                <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Data do Parto</div>
+                <div style="font-weight: 800;">{{ parto.data_parto }}</div>
+            </div>
+            <div>
+                <div style="color:#718096; font-size: 13px; margin-bottom: 4px;">Parto</div>
+                <div style="font-weight: 800;">#{{ parto.id }}</div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST">
+        <div class="form-group">
+            <label>Identificação *</label>
+            <input type="text" class="form-control" name="identificacao" required>
+        </div>
+        <div class="grid" style="grid-template-columns: repeat(2, 1fr);">
+            <div class="form-group">
+                <label>Sexo</label>
+                <select class="form-control" name="sexo">
+                    <option value="Irrelevante">Irrelevante</option>
+                    <option value="Macho">Macho</option>
+                    <option value="Fêmea">Fêmea</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Peso ao nascer (kg)</label>
+                <input type="number" step="0.01" class="form-control" name="peso_nascimento">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Lote</label>
+            <select class="form-control" name="lote_id">
+                <option value="">Não definir agora</option>
+                {% for lote in lotes %}
+                <option value="{{ lote.id }}">{{ lote.nome }} ({{ lote.fase }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Observações</label>
+            <textarea class="form-control" name="observacoes" rows="3"></textarea>
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: flex-end;">
+            <a href="{{ url_for('parto_detalhe', id=parto.id) }}" class="btn btn-secondary">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
