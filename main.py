@@ -1,7 +1,10 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
 import sqlite3
 import os
 from datetime import datetime
+import zlib
+import struct
+from functools import lru_cache
 
 try:
     import psycopg2
@@ -25,6 +28,40 @@ def ensure_db_initialized():
 @app.context_processor
 def inject_globals():
     return {"datetime": datetime}
+
+def _png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+    crc = zlib.crc32(chunk_type)
+    crc = zlib.crc32(data, crc) & 0xFFFFFFFF
+    return struct.pack("!I", len(data)) + chunk_type + data + struct.pack("!I", crc)
+
+
+@lru_cache(maxsize=4)
+def _generate_solid_png(size: int) -> bytes:
+    r, g, b, a = 46, 125, 50, 255
+    rgba = bytes([r, g, b, a])
+    raw = bytearray()
+    for _y in range(size):
+        raw.append(0)
+        raw.extend(rgba * size)
+    compressed = zlib.compress(bytes(raw), 9)
+    ihdr = struct.pack("!IIBBBBB", size, size, 8, 6, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + _png_chunk(b"IHDR", ihdr)
+        + _png_chunk(b"IDAT", compressed)
+        + _png_chunk(b"IEND", b"")
+    )
+
+
+@app.route("/icon-192.png")
+def icon_192():
+    return Response(_generate_solid_png(192), mimetype="image/png")
+
+
+@app.route("/icon-512.png")
+def icon_512():
+    return Response(_generate_solid_png(512), mimetype="image/png")
+
 
 class CursorProxy:
     def __init__(self, backend, cursor, conn_proxy):
@@ -585,6 +622,7 @@ def novo_parto():
     selected_matriz_id = int(selected_matriz_id) if selected_matriz_id.isdigit() else None
     matrizes = conn.execute("SELECT * FROM matrizes WHERE status='ativa' ORDER BY identificacao ASC").fetchall()
     lotes = conn.execute("SELECT * FROM lotes ORDER BY fase ASC, nome ASC").fetchall()
+    conn.close()
     return render_template('form_parto.html', matrizes=matrizes, lotes=lotes, selected_matriz_id=selected_matriz_id)
 
 @app.route('/partos/<int:parto_id>/leitoes/novo', methods=['GET', 'POST'])

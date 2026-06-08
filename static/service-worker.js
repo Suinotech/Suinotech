@@ -1,7 +1,9 @@
 const CACHE_NAME = 'suinotech-cache-v1';
 const urlsToCache = [
   '/',
-  '/static/manifest.json'
+  '/static/manifest.json',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

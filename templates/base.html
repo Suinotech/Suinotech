@@ -6,6 +6,9 @@
     <meta name="theme-color" content="#2e7d32">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png">
     <link rel="manifest" href="/static/manifest.json">
     <title>{% block title %}SuinoTech - Granja de Suínos{% endblock %}</title>
     <style>
@@ -89,6 +92,8 @@
     <script>
         let deferredPrompt;
         const installBtn = document.getElementById('installBtn');
+        const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -102,8 +107,22 @@
                 const { outcome } = await deferredPrompt.userChoice;
                 deferredPrompt = null;
                 installBtn.style.display = 'none';
+                return;
             }
+            if (isIos && !isStandalone) {
+                alert('Para instalar no iPhone/iPad: toque em Compartilhar e depois em \"Adicionar à Tela de Início\".');
+                return;
+            }
+            alert('Se o botão de instalar não aparecer, abra o menu do navegador e procure por \"Instalar app\" ou \"Adicionar à tela inicial\".');
         });
+
+        window.addEventListener('appinstalled', () => {
+            installBtn.style.display = 'none';
+        });
+
+        if (isIos && !isStandalone) {
+            installBtn.style.display = 'block';
+        }
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
