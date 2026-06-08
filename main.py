@@ -5,12 +5,13 @@ from datetime import datetime
 import zlib
 import struct
 from functools import lru_cache
+import ssl
+from urllib.parse import urlparse, parse_qs, unquote
 
 try:
-    import psycopg2
-    import psycopg2.extras
+    import pg8000.dbapi as pg_dbapi
 except Exception:
-    psycopg2 = None
+    pg_dbapi = None
 
 app = Flask(__name__)
 DATABASE_PATH = os.getenv("DATABASE_PATH", "suinotech.db")
@@ -68,19 +69,45 @@ class CursorProxy:
         self._backend = backend
         self._cursor = cursor
         self._conn_proxy = conn_proxy
+        self._col_names = None
 
     def execute(self, sql, params=None):
         if params is None:
             params = ()
         sql2 = self._conn_proxy._adapt_sql(sql)
         self._cursor.execute(sql2, params)
+        self._col_names = None
         return self
 
+    def _ensure_col_names(self):
+        if self._col_names is not None:
+            return
+        desc = getattr(self._cursor, "description", None)
+        if not desc:
+            self._col_names = []
+            return
+        self._col_names = [d[0] for d in desc]
+
+    def _to_mapping(self, row):
+        if row is None:
+            return None
+        if isinstance(row, dict):
+            return row
+        if self._backend != "postgres":
+            return row
+        self._ensure_col_names()
+        if self._col_names and not hasattr(row, "keys"):
+            return {self._col_names[i]: row[i] for i in range(min(len(self._col_names), len(row)))}
+        return row
+
     def fetchone(self):
-        return self._cursor.fetchone()
+        return self._to_mapping(self._cursor.fetchone())
 
     def fetchall(self):
-        return self._cursor.fetchall()
+        rows = self._cursor.fetchall()
+        if self._backend != "postgres":
+            return rows
+        return [self._to_mapping(r) for r in rows]
 
     @property
     def lastrowid(self):
@@ -100,10 +127,7 @@ class DBConn:
         return sql
 
     def cursor(self):
-        if self.backend == "postgres":
-            cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        else:
-            cur = self._conn.cursor()
+        cur = self._conn.cursor()
         return CursorProxy(self.backend, cur, self)
 
     def execute(self, sql, params=None):
@@ -117,20 +141,31 @@ class DBConn:
         self._conn.close()
 
 
-def _postgres_dsn_with_sslmode(url: str) -> str:
-    if "sslmode=" in url:
-        return url
-    if "?" in url:
-        return url + "&sslmode=require"
-    return url + "?sslmode=require"
-
-
 def get_db():
     if DATABASE_URL:
-        if psycopg2 is None:
-            raise RuntimeError("psycopg2 não está instalado")
-        dsn = _postgres_dsn_with_sslmode(DATABASE_URL)
-        conn = psycopg2.connect(dsn)
+        if pg_dbapi is None:
+            raise RuntimeError("pg8000 não está instalado")
+        parsed = urlparse(DATABASE_URL)
+        user = unquote(parsed.username or "")
+        password = unquote(parsed.password or "")
+        host = parsed.hostname or ""
+        port = parsed.port or 5432
+        database = (parsed.path or "").lstrip("/")
+
+        qs = parse_qs(parsed.query or "")
+        sslmode = (qs.get("sslmode", ["require"])[0] or "require").lower()
+        ssl_context = None
+        if sslmode != "disable":
+            ssl_context = ssl.create_default_context()
+
+        conn = pg_dbapi.connect(
+            user=user,
+            password=password,
+            host=host,
+            port=port,
+            database=database,
+            ssl_context=ssl_context,
+        )
         return DBConn("postgres", conn)
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
