@@ -3,8 +3,15 @@ import sqlite3
 import os
 from datetime import datetime
 
+try:
+    import psycopg2
+    import psycopg2.extras
+except Exception:
+    psycopg2 = None
+
 app = Flask(__name__)
-DATABASE = os.getenv("DATABASE_PATH", "suinotech.db")
+DATABASE_PATH = os.getenv("DATABASE_PATH", "suinotech.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
 _db_initialized = False
 
@@ -19,31 +26,125 @@ def ensure_db_initialized():
 def inject_globals():
     return {"datetime": datetime}
 
+class CursorProxy:
+    def __init__(self, backend, cursor, conn_proxy):
+        self._backend = backend
+        self._cursor = cursor
+        self._conn_proxy = conn_proxy
+
+    def execute(self, sql, params=None):
+        if params is None:
+            params = ()
+        sql2 = self._conn_proxy._adapt_sql(sql)
+        self._cursor.execute(sql2, params)
+        return self
+
+    def fetchone(self):
+        return self._cursor.fetchone()
+
+    def fetchall(self):
+        return self._cursor.fetchall()
+
+    @property
+    def lastrowid(self):
+        if self._backend == "sqlite":
+            return getattr(self._cursor, "lastrowid", None)
+        return None
+
+
+class DBConn:
+    def __init__(self, backend, conn):
+        self.backend = backend
+        self._conn = conn
+
+    def _adapt_sql(self, sql: str) -> str:
+        if self.backend == "postgres":
+            return sql.replace("?", "%s")
+        return sql
+
+    def cursor(self):
+        if self.backend == "postgres":
+            cur = self._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        else:
+            cur = self._conn.cursor()
+        return CursorProxy(self.backend, cur, self)
+
+    def execute(self, sql, params=None):
+        cur = self.cursor()
+        return cur.execute(sql, params)
+
+    def commit(self):
+        self._conn.commit()
+
+    def close(self):
+        self._conn.close()
+
+
+def _postgres_dsn_with_sslmode(url: str) -> str:
+    if "sslmode=" in url:
+        return url
+    if "?" in url:
+        return url + "&sslmode=require"
+    return url + "?sslmode=require"
+
+
+def get_db():
+    if DATABASE_URL:
+        if psycopg2 is None:
+            raise RuntimeError("psycopg2 não está instalado")
+        dsn = _postgres_dsn_with_sslmode(DATABASE_URL)
+        conn = psycopg2.connect(dsn)
+        return DBConn("postgres", conn)
+    conn = sqlite3.connect(DATABASE_PATH)
+    conn.row_factory = sqlite3.Row
+    return DBConn("sqlite", conn)
+
 def init_db():
-    conn = sqlite3.connect(DATABASE)
+    conn = get_db()
     c = conn.cursor()
 
     def existing_columns(table_name: str) -> set:
-        rows = c.execute(f"PRAGMA table_info({table_name})").fetchall()
-        return {row[1] for row in rows}
+        if conn.backend == "sqlite":
+            rows = c.execute(f"PRAGMA table_info({table_name})").fetchall()
+            return {row[1] for row in rows}
+        rows = c.execute(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=?",
+            (table_name,),
+        ).fetchall()
+        return {r["column_name"] for r in rows}
 
     def ensure_columns(table_name: str, columns: list):
         cols = existing_columns(table_name)
         for col_name, col_def in columns:
             if col_name not in cols:
-                c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_def}")
+                if conn.backend == "sqlite":
+                    c.execute(f"ALTER TABLE {table_name} ADD COLUMN {col_def}")
+                else:
+                    c.execute(f"ALTER TABLE {table_name} ADD COLUMN IF NOT EXISTS {col_def}")
     
     # Tabela de Matrizes (Porcas/Leitoas)
-    c.execute('''CREATE TABLE IF NOT EXISTS matrizes
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  identificacao TEXT NOT NULL UNIQUE,
-                  tipo TEXT NOT NULL, -- Leitoa, Porca
-                  raca TEXT,
-                  data_nascimento TEXT,
-                  data_entrada TEXT,
-                  status TEXT DEFAULT 'ativa', -- ativa, descartada, morta
-                  observacoes TEXT,
-                  created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS matrizes
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      identificacao TEXT NOT NULL UNIQUE,
+                      tipo TEXT NOT NULL,
+                      raca TEXT,
+                      data_nascimento TEXT,
+                      data_entrada TEXT,
+                      status TEXT DEFAULT 'ativa',
+                      observacoes TEXT,
+                      created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS matrizes
+                     (id SERIAL PRIMARY KEY,
+                      identificacao TEXT NOT NULL UNIQUE,
+                      tipo TEXT NOT NULL,
+                      raca TEXT,
+                      data_nascimento TEXT,
+                      data_entrada TEXT,
+                      status TEXT DEFAULT 'ativa',
+                      observacoes TEXT,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     ensure_columns("matrizes", [
         ("identificacao", "identificacao TEXT"),
         ("tipo", "tipo TEXT"),
@@ -56,17 +157,29 @@ def init_db():
     ])
     
     # Tabela de Partos
-    c.execute('''CREATE TABLE IF NOT EXISTS partos
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  matriz_id INTEGER NOT NULL,
-                  data_parto TEXT NOT NULL,
-                  numero_parto INTEGER, -- 1º, 2º, etc.
-                  nascidos_vivos INTEGER DEFAULT 0,
-                  nascidos_mortos INTEGER DEFAULT 0,
-                  mumificados INTEGER DEFAULT 0,
-                  peso_medio_nascimento REAL,
-                  observacoes TEXT,
-                  FOREIGN KEY (matriz_id) REFERENCES matrizes(id))''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS partos
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      matriz_id INTEGER NOT NULL,
+                      data_parto TEXT NOT NULL,
+                      numero_parto INTEGER,
+                      nascidos_vivos INTEGER DEFAULT 0,
+                      nascidos_mortos INTEGER DEFAULT 0,
+                      mumificados INTEGER DEFAULT 0,
+                      peso_medio_nascimento REAL,
+                      observacoes TEXT,
+                      FOREIGN KEY (matriz_id) REFERENCES matrizes(id))''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS partos
+                     (id SERIAL PRIMARY KEY,
+                      matriz_id INTEGER NOT NULL,
+                      data_parto TEXT NOT NULL,
+                      numero_parto INTEGER,
+                      nascidos_vivos INTEGER DEFAULT 0,
+                      nascidos_mortos INTEGER DEFAULT 0,
+                      mumificados INTEGER DEFAULT 0,
+                      peso_medio_nascimento DOUBLE PRECISION,
+                      observacoes TEXT)''')
     ensure_columns("partos", [
         ("matriz_id", "matriz_id INTEGER"),
         ("data_parto", "data_parto TEXT"),
@@ -79,13 +192,22 @@ def init_db():
     ])
     
     # Tabela de Lotes
-    c.execute('''CREATE TABLE IF NOT EXISTS lotes
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  nome TEXT NOT NULL UNIQUE,
-                  fase TEXT NOT NULL, -- Creche, Recria, Terminação, Maternidade
-                  data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
-                  numero_animais INTEGER DEFAULT 0,
-                  observacoes TEXT)''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS lotes
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      nome TEXT NOT NULL UNIQUE,
+                      fase TEXT NOT NULL,
+                      data_criacao TEXT DEFAULT CURRENT_TIMESTAMP,
+                      numero_animais INTEGER DEFAULT 0,
+                      observacoes TEXT)''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS lotes
+                     (id SERIAL PRIMARY KEY,
+                      nome TEXT NOT NULL UNIQUE,
+                      fase TEXT NOT NULL,
+                      data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      numero_animais INTEGER DEFAULT 0,
+                      observacoes TEXT)''')
     ensure_columns("lotes", [
         ("nome", "nome TEXT"),
         ("fase", "fase TEXT"),
@@ -95,21 +217,35 @@ def init_db():
     ])
     
     # Tabela de Suínos (agora com link para lote e matriz)
-    c.execute('''CREATE TABLE IF NOT EXISTS suinos
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  identificacao TEXT NOT NULL UNIQUE,
-                  lote_id INTEGER,
-                  matriz_id INTEGER, -- mãe
-                  parto_id INTEGER,
-                  data_nascimento TEXT,
-                  sexo TEXT, -- Macho, Fêmea, Irrelevante
-                  peso_nascimento REAL,
-                  status TEXT DEFAULT 'ativo', -- ativo, vendido, morto, transferido
-                  observacoes TEXT,
-                  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (lote_id) REFERENCES lotes(id),
-                  FOREIGN KEY (matriz_id) REFERENCES matrizes(id),
-                  FOREIGN KEY (parto_id) REFERENCES partos(id))''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS suinos
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      identificacao TEXT NOT NULL UNIQUE,
+                      lote_id INTEGER,
+                      matriz_id INTEGER,
+                      parto_id INTEGER,
+                      data_nascimento TEXT,
+                      sexo TEXT,
+                      peso_nascimento REAL,
+                      status TEXT DEFAULT 'ativo',
+                      observacoes TEXT,
+                      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                      FOREIGN KEY (lote_id) REFERENCES lotes(id),
+                      FOREIGN KEY (matriz_id) REFERENCES matrizes(id),
+                      FOREIGN KEY (parto_id) REFERENCES partos(id))''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS suinos
+                     (id SERIAL PRIMARY KEY,
+                      identificacao TEXT NOT NULL UNIQUE,
+                      lote_id INTEGER,
+                      matriz_id INTEGER,
+                      parto_id INTEGER,
+                      data_nascimento TEXT,
+                      sexo TEXT,
+                      peso_nascimento DOUBLE PRECISION,
+                      status TEXT DEFAULT 'ativo',
+                      observacoes TEXT,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     ensure_columns("suinos", [
         ("identificacao", "identificacao TEXT"),
         ("lote_id", "lote_id INTEGER"),
@@ -124,12 +260,19 @@ def init_db():
     ])
     
     # Tabela de Pesagens
-    c.execute('''CREATE TABLE IF NOT EXISTS pesagens
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  suino_id INTEGER NOT NULL,
-                  peso REAL NOT NULL,
-                  data_pesagem TEXT DEFAULT CURRENT_TIMESTAMP,
-                  FOREIGN KEY (suino_id) REFERENCES suinos(id))''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS pesagens
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      suino_id INTEGER NOT NULL,
+                      peso REAL NOT NULL,
+                      data_pesagem TEXT DEFAULT CURRENT_TIMESTAMP,
+                      FOREIGN KEY (suino_id) REFERENCES suinos(id))''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS pesagens
+                     (id SERIAL PRIMARY KEY,
+                      suino_id INTEGER NOT NULL,
+                      peso DOUBLE PRECISION NOT NULL,
+                      data_pesagem TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     ensure_columns("pesagens", [
         ("suino_id", "suino_id INTEGER"),
         ("peso", "peso REAL"),
@@ -137,17 +280,30 @@ def init_db():
     ])
     
     # Tabela de Ração (melhorada)
-    c.execute('''CREATE TABLE IF NOT EXISTS racao
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  nome TEXT NOT NULL,
-                  fase_aplicacao TEXT, -- Creche, Recria, Terminação, Matrizes
-                  tipo TEXT,
-                  quantidade_total REAL,
-                  unidade TEXT DEFAULT 'kg',
-                  data_validade TEXT,
-                  fornecedor TEXT,
-                  preco_kg REAL,
-                  created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS racao
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      nome TEXT NOT NULL,
+                      fase_aplicacao TEXT,
+                      tipo TEXT,
+                      quantidade_total REAL,
+                      unidade TEXT DEFAULT 'kg',
+                      data_validade TEXT,
+                      fornecedor TEXT,
+                      preco_kg REAL,
+                      created_at TEXT DEFAULT CURRENT_TIMESTAMP)''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS racao
+                     (id SERIAL PRIMARY KEY,
+                      nome TEXT NOT NULL,
+                      fase_aplicacao TEXT,
+                      tipo TEXT,
+                      quantidade_total DOUBLE PRECISION,
+                      unidade TEXT DEFAULT 'kg',
+                      data_validade TEXT,
+                      fornecedor TEXT,
+                      preco_kg DOUBLE PRECISION,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     ensure_columns("racao", [
         ("nome", "nome TEXT"),
         ("fase_aplicacao", "fase_aplicacao TEXT"),
@@ -161,18 +317,30 @@ def init_db():
     ])
     
     # Tabela de Saúde (melhorada)
-    c.execute('''CREATE TABLE IF NOT EXISTS saude
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                  suino_id INTEGER,
-                  matriz_id INTEGER,
-                  tipo TEXT NOT NULL, -- Vacinação, Tratamento, Consulta, Desparasitação
-                  produto TEXT,
-                  dosagem TEXT,
-                  descricao TEXT,
-                  data_evento TEXT DEFAULT CURRENT_TIMESTAMP,
-                  veterinario TEXT,
-                  FOREIGN KEY (suino_id) REFERENCES suinos(id),
-                  FOREIGN KEY (matriz_id) REFERENCES matrizes(id))''')
+    if conn.backend == "sqlite":
+        c.execute('''CREATE TABLE IF NOT EXISTS saude
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      suino_id INTEGER,
+                      matriz_id INTEGER,
+                      tipo TEXT NOT NULL,
+                      produto TEXT,
+                      dosagem TEXT,
+                      descricao TEXT,
+                      data_evento TEXT DEFAULT CURRENT_TIMESTAMP,
+                      veterinario TEXT,
+                      FOREIGN KEY (suino_id) REFERENCES suinos(id),
+                      FOREIGN KEY (matriz_id) REFERENCES matrizes(id))''')
+    else:
+        c.execute('''CREATE TABLE IF NOT EXISTS saude
+                     (id SERIAL PRIMARY KEY,
+                      suino_id INTEGER,
+                      matriz_id INTEGER,
+                      tipo TEXT NOT NULL,
+                      produto TEXT,
+                      dosagem TEXT,
+                      descricao TEXT,
+                      data_evento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      veterinario TEXT)''')
     ensure_columns("saude", [
         ("suino_id", "suino_id INTEGER"),
         ("matriz_id", "matriz_id INTEGER"),
@@ -186,11 +354,6 @@ def init_db():
     
     conn.commit()
     conn.close()
-
-def get_db():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
 
 def parse_id_list(text: str):
     if not text:
@@ -229,9 +392,9 @@ def dashboard():
     conn = get_db()
     c = conn.cursor()
     
-    total_suinos = c.execute("SELECT COUNT(*) FROM suinos WHERE status='ativo'").fetchone()[0]
-    total_matrizes = c.execute("SELECT COUNT(*) FROM matrizes WHERE status='ativa'").fetchone()[0]
-    total_lotes = c.execute("SELECT COUNT(*) FROM lotes").fetchone()[0]
+    total_suinos = c.execute("SELECT COUNT(*) AS n FROM suinos WHERE status='ativo'").fetchone()["n"]
+    total_matrizes = c.execute("SELECT COUNT(*) AS n FROM matrizes WHERE status='ativa'").fetchone()["n"]
+    total_lotes = c.execute("SELECT COUNT(*) AS n FROM lotes").fetchone()["n"]
     
     partos_recentes = conn.execute('''SELECT p.*, m.identificacao as matriz 
                                       FROM partos p JOIN matrizes m ON p.matriz_id = m.id 
@@ -377,13 +540,16 @@ def novo_parto():
         peso_medio_nascimento = data.get('peso_medio_nascimento') or None
         observacoes = data.get('observacoes') or ""
 
-        conn.execute('''INSERT INTO partos (matriz_id, data_parto, numero_parto, nascidos_vivos,
+        cursor = conn.execute('''INSERT INTO partos (matriz_id, data_parto, numero_parto, nascidos_vivos,
                         nascidos_mortos, mumificados, peso_medio_nascimento, observacoes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''',
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)''' + (" RETURNING id" if conn.backend == "postgres" else ""),
                     (matriz_id, data_parto, numero_parto,
                      nascidos_vivos, nascidos_mortos, mumificados,
                      peso_medio_nascimento, observacoes))
-        parto_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        if conn.backend == "postgres":
+            parto_id = cursor.fetchone()["id"]
+        else:
+            parto_id = cursor.lastrowid
 
         criar_leitoes = (data.get("criar_leitoes") == "on")
         lote_id_raw = (data.get("lote_id") or "").strip()
@@ -413,14 +579,12 @@ def novo_parto():
                             (ident, lote_id, matriz_id, parto_id, data_parto, "Irrelevante", "ativo"))
         conn.commit()
         conn.close()
-        return redirect(url_for('partos'))
         return redirect(url_for('parto_detalhe', id=parto_id))
 
     selected_matriz_id = request.args.get("matriz_id", "").strip()
     selected_matriz_id = int(selected_matriz_id) if selected_matriz_id.isdigit() else None
     matrizes = conn.execute("SELECT * FROM matrizes WHERE status='ativa' ORDER BY identificacao ASC").fetchall()
     lotes = conn.execute("SELECT * FROM lotes ORDER BY fase ASC, nome ASC").fetchall()
-    return render_template('form_parto.html', matrizes=matrizes)
     return render_template('form_parto.html', matrizes=matrizes, lotes=lotes, selected_matriz_id=selected_matriz_id)
 
 @app.route('/partos/<int:parto_id>/leitoes/novo', methods=['GET', 'POST'])
@@ -519,12 +683,15 @@ def novo_suino():
     conn = get_db()
     if request.method == 'POST':
         data = request.form
-        conn.execute('''INSERT INTO suinos (identificacao, lote_id, matriz_id, data_nascimento, sexo, peso_nascimento, observacoes)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+        cursor = conn.execute('''INSERT INTO suinos (identificacao, lote_id, matriz_id, data_nascimento, sexo, peso_nascimento, observacoes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''' + (" RETURNING id" if conn.backend == "postgres" else ""),
                     (data['identificacao'], data['lote_id'] or None, data['matriz_id'] or None,
                      data['data_nascimento'], data['sexo'], data['peso_nascimento'], data['observacoes']))
         if data['peso_nascimento']:
-            suino_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+            if conn.backend == "postgres":
+                suino_id = cursor.fetchone()["id"]
+            else:
+                suino_id = cursor.lastrowid
             conn.execute("INSERT INTO pesagens (suino_id, peso) VALUES (?, ?)", (suino_id, data['peso_nascimento']))
         conn.commit()
         conn.close()
@@ -641,12 +808,12 @@ def relatorios():
     conn = get_db()
     c = conn.cursor()
     
-    total_suinos = c.execute("SELECT COUNT(*) FROM suinos WHERE status='ativo'").fetchone()[0]
-    total_matrizes = c.execute("SELECT COUNT(*) FROM matrizes WHERE status='ativa'").fetchone()[0]
-    total_lotes = c.execute("SELECT COUNT(*) FROM lotes").fetchone()[0]
+    total_suinos = c.execute("SELECT COUNT(*) AS n FROM suinos WHERE status='ativo'").fetchone()["n"]
+    total_matrizes = c.execute("SELECT COUNT(*) AS n FROM matrizes WHERE status='ativa'").fetchone()["n"]
+    total_lotes = c.execute("SELECT COUNT(*) AS n FROM lotes").fetchone()["n"]
     
-    total_nascidos_vivos = c.execute("SELECT COALESCE(SUM(nascidos_vivos), 0) FROM partos").fetchone()[0]
-    total_nascidos_mortos = c.execute("SELECT COALESCE(SUM(nascidos_mortos), 0) FROM partos").fetchone()[0]
+    total_nascidos_vivos = c.execute("SELECT COALESCE(SUM(nascidos_vivos), 0) AS n FROM partos").fetchone()["n"]
+    total_nascidos_mortos = c.execute("SELECT COALESCE(SUM(nascidos_mortos), 0) AS n FROM partos").fetchone()["n"]
     
     stats = {
         'total_suinos': total_suinos,
