@@ -199,6 +199,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS matrizes
                      (id INTEGER PRIMARY KEY AUTOINCREMENT,
                       identificacao TEXT NOT NULL UNIQUE,
+                      baia_numero TEXT,
                       tipo TEXT NOT NULL,
                       raca TEXT,
                       data_nascimento TEXT,
@@ -210,6 +211,7 @@ def init_db():
         c.execute('''CREATE TABLE IF NOT EXISTS matrizes
                      (id SERIAL PRIMARY KEY,
                       identificacao TEXT NOT NULL UNIQUE,
+                      baia_numero TEXT,
                       tipo TEXT NOT NULL,
                       raca TEXT,
                       data_nascimento TEXT,
@@ -219,6 +221,7 @@ def init_db():
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
     ensure_columns("matrizes", [
         ("identificacao", "identificacao TEXT"),
+        ("baia_numero", "baia_numero TEXT"),
         ("tipo", "tipo TEXT"),
         ("raca", "raca TEXT"),
         ("data_nascimento", "data_nascimento TEXT"),
@@ -531,9 +534,9 @@ def nova_matriz():
     if request.method == 'POST':
         conn = get_db()
         data = request.form
-        conn.execute('''INSERT INTO matrizes (identificacao, tipo, raca, data_nascimento, data_entrada, observacoes)
-                        VALUES (?, ?, ?, ?, ?, ?)''',
-                    (data['identificacao'], data['tipo'], data['raca'],
+        conn.execute('''INSERT INTO matrizes (identificacao, baia_numero, tipo, raca, data_nascimento, data_entrada, observacoes)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                    (data['identificacao'], (data.get('baia_numero') or "").strip(), data['tipo'], data['raca'],
                      data['data_nascimento'], data['data_entrada'], data['observacoes']))
         conn.commit()
         conn.close()
@@ -546,9 +549,9 @@ def editar_matriz(id):
     conn = get_db()
     if request.method == 'POST':
         data = request.form
-        conn.execute('''UPDATE matrizes SET identificacao=?, tipo=?, raca=?, data_nascimento=?,
+        conn.execute('''UPDATE matrizes SET identificacao=?, baia_numero=?, tipo=?, raca=?, data_nascimento=?,
                         data_entrada=?, status=?, observacoes=? WHERE id=?''',
-                    (data['identificacao'], data['tipo'], data['raca'], data['data_nascimento'],
+                    (data['identificacao'], (data.get('baia_numero') or "").strip(), data['tipo'], data['raca'], data['data_nascimento'],
                      data['data_entrada'], data['status'], data['observacoes'], id))
         conn.commit()
         conn.close()
