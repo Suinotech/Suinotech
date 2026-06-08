@@ -702,7 +702,7 @@ def novo_leitao(parto_id):
 def lotes():
     ensure_db_initialized()
     conn = get_db()
-    lotes_list = conn.execute("SELECT * FROM lotes ORDER BY created_at DESC").fetchall()
+    lotes_list = conn.execute("SELECT * FROM lotes ORDER BY data_criacao DESC, id DESC").fetchall()
     conn.close()
     return render_template('lotes.html', lotes=lotes_list)
 
