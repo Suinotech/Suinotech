@@ -466,6 +466,7 @@ def dashboard():
     ensure_db_initialized()
     conn = get_db()
     c = conn.cursor()
+    busca = (request.args.get("q") or "").strip()
     
     total_suinos = c.execute("SELECT COUNT(*) AS n FROM suinos WHERE status='ativo'").fetchone()["n"]
     total_matrizes = c.execute("SELECT COUNT(*) AS n FROM matrizes WHERE status='ativa'").fetchone()["n"]
@@ -480,18 +481,62 @@ def dashboard():
         'total_matrizes': total_matrizes,
         'total_lotes': total_lotes
     }
+
+    matrizes_encontradas = []
+    lotes_encontrados = []
+    if busca:
+        termo = f"%{busca.lower()}%"
+        matrizes_encontradas = conn.execute(
+            """SELECT * FROM matrizes
+               WHERE LOWER(COALESCE(identificacao, '')) LIKE ?
+                  OR LOWER(COALESCE(baia_numero, '')) LIKE ?
+                  OR LOWER(COALESCE(tipo, '')) LIKE ?
+                  OR LOWER(COALESCE(raca, '')) LIKE ?
+               ORDER BY created_at DESC
+               LIMIT 20""",
+            (termo, termo, termo, termo),
+        ).fetchall()
+        lotes_encontrados = conn.execute(
+            """SELECT * FROM lotes
+               WHERE LOWER(COALESCE(nome, '')) LIKE ?
+                  OR LOWER(COALESCE(fase, '')) LIKE ?
+                  OR LOWER(COALESCE(observacoes, '')) LIKE ?
+               ORDER BY data_criacao DESC, id DESC
+               LIMIT 20""",
+            (termo, termo, termo),
+        ).fetchall()
     
     conn.close()
-    return render_template('dashboard.html', stats=stats, partos_recentes=partos_recentes)
+    return render_template(
+        'dashboard.html',
+        stats=stats,
+        partos_recentes=partos_recentes,
+        busca=busca,
+        matrizes_encontradas=matrizes_encontradas,
+        lotes_encontrados=lotes_encontrados,
+    )
 
 # --- MATRIZES ---
 @app.route('/matrizes')
 def matrizes():
     ensure_db_initialized()
     conn = get_db()
-    matrizes_list = conn.execute("SELECT * FROM matrizes ORDER BY created_at DESC").fetchall()
+    busca = (request.args.get("q") or "").strip()
+    if busca:
+        termo = f"%{busca.lower()}%"
+        matrizes_list = conn.execute(
+            """SELECT * FROM matrizes
+               WHERE LOWER(COALESCE(identificacao, '')) LIKE ?
+                  OR LOWER(COALESCE(baia_numero, '')) LIKE ?
+                  OR LOWER(COALESCE(tipo, '')) LIKE ?
+                  OR LOWER(COALESCE(raca, '')) LIKE ?
+               ORDER BY created_at DESC""",
+            (termo, termo, termo, termo),
+        ).fetchall()
+    else:
+        matrizes_list = conn.execute("SELECT * FROM matrizes ORDER BY created_at DESC").fetchall()
     conn.close()
-    return render_template('matrizes.html', matrizes=matrizes_list)
+    return render_template('matrizes.html', matrizes=matrizes_list, busca=busca)
 
 @app.route('/matrizes/<int:id>')
 def matriz_detalhe(id):
@@ -705,9 +750,21 @@ def novo_leitao(parto_id):
 def lotes():
     ensure_db_initialized()
     conn = get_db()
-    lotes_list = conn.execute("SELECT * FROM lotes ORDER BY data_criacao DESC, id DESC").fetchall()
+    busca = (request.args.get("q") or "").strip()
+    if busca:
+        termo = f"%{busca.lower()}%"
+        lotes_list = conn.execute(
+            """SELECT * FROM lotes
+               WHERE LOWER(COALESCE(nome, '')) LIKE ?
+                  OR LOWER(COALESCE(fase, '')) LIKE ?
+                  OR LOWER(COALESCE(observacoes, '')) LIKE ?
+               ORDER BY data_criacao DESC, id DESC""",
+            (termo, termo, termo),
+        ).fetchall()
+    else:
+        lotes_list = conn.execute("SELECT * FROM lotes ORDER BY data_criacao DESC, id DESC").fetchall()
     conn.close()
-    return render_template('lotes.html', lotes=lotes_list)
+    return render_template('lotes.html', lotes=lotes_list, busca=busca)
 
 @app.route('/lotes/novo', methods=['GET', 'POST'])
 def novo_lote():
@@ -715,12 +772,25 @@ def novo_lote():
     if request.method == 'POST':
         conn = get_db()
         data = request.form
-        conn.execute('''INSERT INTO lotes (nome, fase, numero_animais, observacoes)
-                        VALUES (?, ?, ?, ?)''',
-                    (data['nome'], data['fase'], data['numero_animais'], data['observacoes']))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('lotes'))
+        numero_animais_raw = (data.get('numero_animais') or "").strip()
+        try:
+            numero_animais = int(numero_animais_raw) if numero_animais_raw != "" else 0
+        except Exception:
+            numero_animais = 0
+        observacoes = data.get('observacoes') or ""
+        try:
+            conn.execute('''INSERT INTO lotes (nome, fase, numero_animais, observacoes)
+                            VALUES (?, ?, ?, ?)''',
+                        (data['nome'], data['fase'], numero_animais, observacoes))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('lotes'))
+        except Exception as e:
+            conn.close()
+            msg = str(e).lower()
+            if "unique" in msg or "duplicate" in msg:
+                return "Já existe um lote com esse nome.", 400
+            return f"Erro ao criar lote: {e}", 400
     return render_template('form_lote.html', lote=None)
 
 @app.route('/lotes/<int:id>/editar', methods=['GET', 'POST'])
@@ -729,11 +799,24 @@ def editar_lote(id):
     conn = get_db()
     if request.method == 'POST':
         data = request.form
-        conn.execute('''UPDATE lotes SET nome=?, fase=?, numero_animais=?, observacoes=? WHERE id=?''',
-                    (data['nome'], data['fase'], data['numero_animais'], data['observacoes'], id))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('lotes'))
+        numero_animais_raw = (data.get('numero_animais') or "").strip()
+        try:
+            numero_animais = int(numero_animais_raw) if numero_animais_raw != "" else 0
+        except Exception:
+            numero_animais = 0
+        observacoes = data.get('observacoes') or ""
+        try:
+            conn.execute('''UPDATE lotes SET nome=?, fase=?, numero_animais=?, observacoes=? WHERE id=?''',
+                        (data['nome'], data['fase'], numero_animais, observacoes, id))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('lotes'))
+        except Exception as e:
+            conn.close()
+            msg = str(e).lower()
+            if "unique" in msg or "duplicate" in msg:
+                return "Já existe um lote com esse nome.", 400
+            return f"Erro ao editar lote: {e}", 400
     lote = conn.execute("SELECT * FROM lotes WHERE id=?", (id,)).fetchone()
     conn.close()
     return render_template('form_lote.html', lote=lote)

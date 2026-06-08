@@ -9,6 +9,14 @@
         <a href="{{ url_for('nova_matriz') }}" class="btn btn-primary">+ Nova Matriz</a>
     </div>
 
+    <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+        <input type="text" class="form-control" name="q" value="{{ busca or '' }}" placeholder="Buscar por identificação, baia, tipo ou raça" style="flex:1; min-width:220px;">
+        <button type="submit" class="btn btn-secondary">Buscar</button>
+        {% if busca %}
+        <a href="{{ url_for('matrizes') }}" class="btn btn-secondary">Limpar</a>
+        {% endif %}
+    </form>
+
     {% if matrizes %}
     <table>
         <thead>
@@ -40,8 +48,8 @@
     </table>
     {% else %}
     <div class="empty-state">
-        <p>Nenhuma matriz cadastrada.</p>
-        <p>Clique em "+ Nova Matriz" para começar.</p>
+        <p>{% if busca %}Nenhuma matriz encontrada para "{{ busca }}".{% else %}Nenhuma matriz cadastrada.{% endif %}</p>
+        <p>{% if busca %}Tente outro termo ou clique em "Limpar".{% else %}Clique em "+ Nova Matriz" para começar.{% endif %}</p>
     </div>
     {% endif %}
 </div>

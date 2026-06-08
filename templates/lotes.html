@@ -9,6 +9,14 @@
         <a href="{{ url_for('novo_lote') }}" class="btn btn-primary">+ Novo Lote</a>
     </div>
 
+    <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+        <input type="text" class="form-control" name="q" value="{{ busca or '' }}" placeholder="Buscar por nome, fase ou observação" style="flex:1; min-width:220px;">
+        <button type="submit" class="btn btn-secondary">Buscar</button>
+        {% if busca %}
+        <a href="{{ url_for('lotes') }}" class="btn btn-secondary">Limpar</a>
+        {% endif %}
+    </form>
+
     {% if lotes %}
     <table>
         <thead>
@@ -36,8 +44,8 @@
     </table>
     {% else %}
     <div class="empty-state">
-        <p>Nenhum lote cadastrado.</p>
-        <p>Clique em "+ Novo Lote" para começar.</p>
+        <p>{% if busca %}Nenhum lote encontrado para "{{ busca }}".{% else %}Nenhum lote cadastrado.{% endif %}</p>
+        <p>{% if busca %}Tente outro termo ou clique em "Limpar".{% else %}Clique em "+ Novo Lote" para começar.{% endif %}</p>
     </div>
     {% endif %}
 </div>

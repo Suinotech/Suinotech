@@ -19,6 +19,81 @@
 </div>
 
 <div class="card">
+    <h2>🔎 Busca Geral</h2>
+    <form method="GET" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <input type="text" class="form-control" name="q" value="{{ busca or '' }}" placeholder="Buscar matriz ou lote" style="flex:1; min-width:220px;">
+        <button type="submit" class="btn btn-secondary">Buscar</button>
+        {% if busca %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">Limpar</a>
+        {% endif %}
+    </form>
+</div>
+
+{% if busca %}
+<div class="card">
+    <h2>🐖 Matrizes Encontradas</h2>
+    {% if matrizes_encontradas %}
+    <table>
+        <thead>
+            <tr>
+                <th>Identificação</th>
+                <th>Baia</th>
+                <th>Tipo</th>
+                <th>Status</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for matriz in matrizes_encontradas %}
+            <tr>
+                <td><strong>{{ matriz.identificacao }}</strong></td>
+                <td>{{ matriz.baia_numero or '-' }}</td>
+                <td>{{ matriz.tipo or '-' }}</td>
+                <td>{{ matriz.status or '-' }}</td>
+                <td><a href="{{ url_for('matriz_detalhe', id=matriz.id) }}" class="btn btn-secondary btn-sm">Abrir</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhuma matriz encontrada para "{{ busca }}".</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>📦 Lotes Encontrados</h2>
+    {% if lotes_encontrados %}
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Fase</th>
+                <th>Animais</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lote in lotes_encontrados %}
+            <tr>
+                <td><strong>{{ lote.nome }}</strong></td>
+                <td>{{ lote.fase or '-' }}</td>
+                <td>{{ lote.numero_animais or 0 }}</td>
+                <td><a href="{{ url_for('editar_lote', id=lote.id) }}" class="btn btn-secondary btn-sm">Abrir</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Nenhum lote encontrado para "{{ busca }}".</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
     <h2>⚡ Ações Rápidas</h2>
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <a href="{{ url_for('nova_matriz') }}" class="btn btn-primary">+ Nova Matriz</a>
