@@ -47,8 +47,8 @@
         .form-group label { display: block; margin-bottom: 6px; font-weight: 500; color: #4a5568; font-size: 14px; }
         .form-control { width: 100%; padding: 12px 14px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; transition: border-color 0.2s; }
         .form-control:focus { outline: none; border-color: #388e3c; background: #fafdfa; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f0f4f8; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 14px; table-layout: fixed; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #f0f4f8; overflow-wrap: anywhere; word-break: break-word; }
         th { background: #fafdfa; font-weight: 600; color: #4a5568; }
         tr:hover { background: #fafdfa; }
         .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
@@ -64,7 +64,8 @@
         .header-actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
         .install-btn { background: white; color: #2e7d32; padding: 8px 14px; border-radius: 8px; font-weight: 600; cursor: pointer; border: none; display: none; }
         @media (max-width: 768px) {
-            table { display: block; overflow-x: auto; }
+            table { display: table; width: 100%; }
+            th, td { padding: 10px 8px; font-size: 13px; }
             .stat-value { font-size: 26px; }
             header h1 { font-size: 18px; }
         }
