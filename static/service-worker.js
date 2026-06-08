@@ -1,4 +1,4 @@
-const CACHE_NAME = 'suinotech-cache-v1';
+const CACHE_NAME = 'suinotech-cache-v2';
 const urlsToCache = [
   '/',
   '/static/manifest.json',
